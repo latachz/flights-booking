@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { CurrencyCode } from '../../types/enums'
 import { PriceCalculator } from './PriceCalculator'
 import { PriceCalculationCommand, PriceBreakdown } from './pricing.types'
+import { NotFoundError } from '../../lib/errors'
 
 export class DatabasePriceCalculator extends PriceCalculator {
   constructor(private readonly prisma: PrismaClient) {
@@ -11,7 +12,7 @@ export class DatabasePriceCalculator extends PriceCalculator {
   async calculatePrice(command: PriceCalculationCommand): Promise<PriceBreakdown> {
     const rule = await this.prisma.priceRule.findUnique({ where: { offerId: command.offerId } })
     if (!rule) {
-      throw new Error(`Unknown offer: ${command.offerId}`)
+      throw new NotFoundError(`Unknown offer: ${command.offerId}`)
     }
 
     const baseAmount = rule.basePriceAmount.toNumber()

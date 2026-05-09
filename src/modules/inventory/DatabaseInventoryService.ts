@@ -4,6 +4,7 @@ import { InventoryService } from './InventoryService'
 import { SeatAvailabilityPolicy } from './SeatAvailabilityPolicy'
 import { HoldSeatsCommand, SeatHold } from './inventory.types'
 import { generateId } from '../../utils/id-generator'
+import { NotFoundError, DomainError } from '../../lib/errors'
 
 export class DatabaseInventoryService extends InventoryService {
   private static readonly HOLD_DURATION_MS = 15 * 60 * 1000
@@ -21,11 +22,11 @@ export class DatabaseInventoryService extends InventoryService {
     return this.prisma.$transaction(async (tx) => {
       const inv = await tx.seatInventory.findUnique({ where: { offerId: command.offerId } })
       if (!inv) {
-        throw new Error(`No inventory found for offer ${command.offerId}`)
+        throw new NotFoundError(`No inventory found for offer ${command.offerId}`)
       }
 
       if (!this.policy.canHoldSeats(inv.availableSeats, command.passengerCount)) {
-        throw new Error(`Not enough seats available for offer ${command.offerId}`)
+        throw new DomainError(`Not enough seats available for offer ${command.offerId}`)
       }
 
       await tx.seatInventory.update({
@@ -58,10 +59,10 @@ export class DatabaseInventoryService extends InventoryService {
   async getSeatHold(seatHoldId: SeatHoldId): Promise<SeatHold> {
     const hold = await this.prisma.seatHold.findUnique({ where: { seatHoldId } })
     if (!hold) {
-      throw new Error(`Seat hold ${seatHoldId} not found`)
+      throw new NotFoundError(`Seat hold ${seatHoldId} not found`)
     }
     if (hold.status !== 'ACTIVE') {
-      throw new Error(`Seat hold ${seatHoldId} is no longer active (status: ${hold.status})`)
+      throw new DomainError(`Seat hold ${seatHoldId} is no longer active (status: ${hold.status})`)
     }
     return {
       seatHoldId: hold.seatHoldId as SeatHoldId,
@@ -74,7 +75,7 @@ export class DatabaseInventoryService extends InventoryService {
   async releaseSeatHold(seatHoldId: SeatHoldId): Promise<void> {
     const hold = await this.prisma.seatHold.findUnique({ where: { seatHoldId } })
     if (!hold) {
-      throw new Error(`Seat hold ${seatHoldId} not found`)
+      throw new NotFoundError(`Seat hold ${seatHoldId} not found`)
     }
     if (hold.status === 'RELEASED' || hold.status === 'EXPIRED') {
       return

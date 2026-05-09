@@ -1,4 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
+import { AppError } from '../../lib/errors'
+import { Logger } from '../../lib/logger'
+
+const logger = new Logger('ErrorMiddleware')
 
 export function errorMiddleware(
   err: Error,
@@ -6,18 +10,13 @@ export function errorMiddleware(
   res: Response,
   _next: NextFunction
 ): void {
-  const msg = err.message ?? 'Internal server error'
-
-  if (msg === 'Invalid credentials' || msg === 'Invalid token' || msg === 'Token expired') {
-    res.status(401).json({ error: msg })
-  } else if (msg === 'Access denied') {
-    res.status(403).json({ error: msg })
-  } else if (msg.toLowerCase().includes('not found')) {
-    res.status(404).json({ error: msg })
-  } else if (msg.includes('Not enough seats') || msg.includes('cannot be cancelled')) {
-    res.status(409).json({ error: msg })
+  if (err instanceof AppError) {
+    if (err.statusCode >= 500) {
+      logger.error(err.message, err)
+    }
+    res.status(err.statusCode).json({ error: err.message })
   } else {
-    console.error(err)
+    logger.error('Unhandled error', err)
     res.status(500).json({ error: 'Internal server error' })
   }
 }

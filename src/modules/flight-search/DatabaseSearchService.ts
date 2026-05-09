@@ -4,6 +4,7 @@ import { CabinClass, CurrencyCode } from '../../types/enums'
 import { SearchService } from './SearchService'
 import { FlightSearchCriteria, FlightOffer, FlightOfferDetails, FlightSegment } from './flight-search.types'
 import { FareRules, BaggageOption } from '../pricing/pricing.types'
+import { NotFoundError } from '../../lib/errors'
 
 export class DatabaseSearchService extends SearchService {
   constructor(private readonly prisma: PrismaClient) {
@@ -49,7 +50,7 @@ export class DatabaseSearchService extends SearchService {
   async getFlightOfferDetails(offerId: OfferId): Promise<FlightOfferDetails> {
     const row = await this.prisma.flightOffer.findUnique({ where: { offerId } })
     if (!row) {
-      throw new Error(`Offer ${offerId} not found`)
+      throw new NotFoundError(`Offer ${offerId} not found`)
     }
     return {
       offerId: row.offerId as OfferId,

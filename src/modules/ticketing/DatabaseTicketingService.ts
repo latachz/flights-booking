@@ -6,6 +6,7 @@ import { BookingService } from '../booking/BookingService'
 import { IssueTicketCommand } from './ticketing.types'
 import { Ticket } from './Ticket'
 import { generateId } from '../../utils/id-generator'
+import { NotFoundError } from '../../lib/errors'
 
 export class DatabaseTicketingService extends TicketingService {
   constructor(
@@ -18,7 +19,7 @@ export class DatabaseTicketingService extends TicketingService {
   async issueTicket(command: IssueTicketCommand): Promise<Ticket> {
     const booking = await this.bookingService.getBookingById(command.bookingId)
     if (!booking) {
-      throw new Error(`Booking ${command.bookingId} not found`)
+      throw new NotFoundError(`Booking ${command.bookingId} not found`)
     }
 
     const firstTicket = await this.prisma.$transaction(async (tx) => {

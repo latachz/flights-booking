@@ -4,6 +4,7 @@ import { PaymentMethod, PaymentStatus, CurrencyCode } from '../../types/enums'
 import { PaymentService } from './PaymentService'
 import { InitiatePaymentCommand, Payment, PaymentSession, PaymentProviderResponse } from './payment.types'
 import { generateId } from '../../utils/id-generator'
+import { NotFoundError } from '../../lib/errors'
 
 export class DatabasePaymentService extends PaymentService {
   constructor(private readonly prisma: PrismaClient) {
@@ -32,7 +33,7 @@ export class DatabasePaymentService extends PaymentService {
   async confirmPayment(paymentId: PaymentId, providerResponse: PaymentProviderResponse): Promise<Payment> {
     const existing = await this.prisma.payment.findUnique({ where: { paymentId } })
     if (!existing) {
-      throw new Error(`Payment ${paymentId} not found`)
+      throw new NotFoundError(`Payment ${paymentId} not found`)
     }
 
     const statusMap = { SUCCESS: 'AUTHORIZED', FAILURE: 'FAILED', PENDING: 'PENDING' } as const

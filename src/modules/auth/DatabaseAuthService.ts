@@ -3,6 +3,7 @@ import { UserId } from '../../types/ids'
 import { AuthService } from './AuthService'
 import { AuthToken, AuthContext } from './auth.types'
 import { generateId } from '../../utils/id-generator'
+import { UnauthorizedError } from '../../lib/errors'
 
 export class DatabaseAuthService extends AuthService {
   constructor(private readonly prisma: PrismaClient) {
@@ -12,7 +13,7 @@ export class DatabaseAuthService extends AuthService {
   async login(email: string, password: string): Promise<AuthToken> {
     const user = await this.prisma.user.findUnique({ where: { email } })
     if (!user || user.password !== password) {
-      throw new Error('Invalid credentials')
+      throw new UnauthorizedError('Invalid credentials')
     }
 
     const accessToken = generateId()
@@ -35,11 +36,11 @@ export class DatabaseAuthService extends AuthService {
   async refreshToken(token: string): Promise<AuthToken> {
     const entry = await this.prisma.authToken.findFirst({ where: { refreshToken: token } })
     if (!entry) {
-      throw new Error('Invalid token')
+      throw new UnauthorizedError('Invalid token')
     }
     if (new Date() > entry.expiresAt) {
       await this.prisma.authToken.delete({ where: { accessToken: entry.accessToken } })
-      throw new Error('Token expired')
+      throw new UnauthorizedError('Token expired')
     }
 
     const accessToken = generateId()
@@ -57,11 +58,11 @@ export class DatabaseAuthService extends AuthService {
   async validateAccess(token: string): Promise<AuthContext> {
     const entry = await this.prisma.authToken.findUnique({ where: { accessToken: token } })
     if (!entry) {
-      throw new Error('Invalid token')
+      throw new UnauthorizedError('Invalid token')
     }
     if (new Date() > entry.expiresAt) {
       await this.prisma.authToken.delete({ where: { accessToken: token } })
-      throw new Error('Token expired')
+      throw new UnauthorizedError('Token expired')
     }
     return { userId: entry.userId as UserId, roles: entry.roles }
   }

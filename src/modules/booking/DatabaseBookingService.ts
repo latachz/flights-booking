@@ -6,6 +6,7 @@ import { PriceCalculator } from '../pricing/PriceCalculator'
 import { Booking, CreateBookingCommand, CancelBookingCommand } from './booking.types'
 import { Passenger } from '../passenger/passenger.types'
 import { generateId } from '../../utils/id-generator'
+import { NotFoundError, DomainError } from '../../lib/errors'
 
 export class DatabaseBookingService extends BookingService {
   private static readonly PAYMENT_WINDOW_MS = 30 * 60 * 1000
@@ -110,10 +111,10 @@ export class DatabaseBookingService extends BookingService {
   async cancelBooking(command: CancelBookingCommand): Promise<Booking> {
     const existing = await this.prisma.booking.findUnique({ where: { bookingId: command.bookingId } })
     if (!existing) {
-      throw new Error(`Booking ${command.bookingId} not found`)
+      throw new NotFoundError(`Booking ${command.bookingId} not found`)
     }
     if (existing.status === 'CANCELLED') {
-      throw new Error('Booking is already cancelled')
+      throw new DomainError('Booking is already cancelled')
     }
 
     await this.prisma.booking.update({
