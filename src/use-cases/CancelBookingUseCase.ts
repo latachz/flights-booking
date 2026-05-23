@@ -1,8 +1,9 @@
 import { BookingId, UserId, SeatHoldId } from '../types/ids'
 import { BookingService } from '../modules/booking/BookingService'
 import { Booking } from '../modules/booking/booking.types'
-import { InventoryService } from '../modules/inventory/InventoryService'
-import { NotificationService } from '../modules/notification/NotificationService'
+import { BookingEventBus } from '../events/BookingEventBus'
+import { BOOKING_CANCELLED } from '../events/eventTypes'
+import { BookingCancelledEvent } from '../events/booking.events'
 import { NotFoundError, ForbiddenError, DomainError } from '../lib/errors'
 import { Logger } from '../lib/logger'
 
@@ -18,8 +19,7 @@ export class CancelBookingUseCase {
 
   constructor(
     private readonly bookingService: BookingService,
-    private readonly inventoryService: InventoryService,
-    private readonly notificationService: NotificationService
+    private readonly eventBus: BookingEventBus
   ) {}
 
   async execute(input: CancelBookingInput): Promise<Booking> {
@@ -41,17 +41,13 @@ export class CancelBookingUseCase {
       reason: input.reason,
     })
 
-    this.logger.info('Booking cancelled', { bookingId: input.bookingId })
+    this.logger.info('Booking cancelled, emitting event', { bookingId: input.bookingId })
 
-    if (input.seatHoldId) {
-      await this.inventoryService.releaseSeatHold(input.seatHoldId).catch((err) => {
-        this.logger.warn('Failed to release seat hold', err)
-      })
+    const event: BookingCancelledEvent = {
+      bookingId: input.bookingId,
+      seatHoldId: input.seatHoldId,
     }
-
-    await this.notificationService.sendBookingConfirmation(input.bookingId).catch((err) => {
-      this.logger.warn('Failed to send cancellation notification', err)
-    })
+    await this.eventBus.emit(BOOKING_CANCELLED, event)
 
     return cancelled
   }

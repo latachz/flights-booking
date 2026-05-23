@@ -18,6 +18,7 @@ import { DatabasePaymentService } from '../modules/payment/DatabasePaymentServic
 import { DatabaseBookingService } from '../modules/booking/DatabaseBookingService'
 import { DatabaseTicketingService } from '../modules/ticketing/DatabaseTicketingService'
 import { DefaultSeatAvailabilityPolicy } from '../modules/inventory/DefaultSeatAvailabilityPolicy'
+import { RetryNotificationDecorator } from '../modules/notification/RetryNotificationDecorator'
 
 export class DatabaseServiceFactory extends ServiceFactory {
   constructor(private readonly prisma: PrismaClient) {
@@ -45,7 +46,8 @@ export class DatabaseServiceFactory extends ServiceFactory {
   }
 
   createNotificationService(): NotificationService {
-    return new DatabaseNotificationService(this.prisma)
+    const base = new DatabaseNotificationService(this.prisma)
+    return new RetryNotificationDecorator(base)
   }
 
   createPaymentService(): PaymentService {

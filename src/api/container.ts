@@ -10,6 +10,11 @@ import { SearchFlightsUseCase } from '../use-cases/SearchFlightsUseCase'
 import { CreateBookingUseCase } from '../use-cases/CreateBookingUseCase'
 import { GetBookingDetailsUseCase } from '../use-cases/GetBookingDetailsUseCase'
 import { CancelBookingUseCase } from '../use-cases/CancelBookingUseCase'
+import { BookingEventBus } from '../events/BookingEventBus'
+import { BOOKING_CANCELLED } from '../events/eventTypes'
+import { BookingCancelledEvent } from '../events/booking.events'
+import { SeatHoldReleaseObserver } from '../events/observers/SeatHoldReleaseObserver'
+import { CancellationNotificationObserver } from '../events/observers/CancellationNotificationObserver'
 
 export interface Container {
   authService: AuthService
@@ -31,15 +36,21 @@ export function createContainer(
   const authService = factory.createAuthService()
   const searchService = factory.createSearchService()
   const inventoryService = factory.createInventoryService(policy)
-  const notificationSvc = factory.createNotificationService()
+  const notificationService = factory.createNotificationService()
   const paymentService = factory.createPaymentService()
   const bookingService = factory.createBookingService(priceCalculator)
   const ticketingService = factory.createTicketingService(bookingService)
 
+  const eventBus = new BookingEventBus()
+  const seatHoldObserver = new SeatHoldReleaseObserver(inventoryService)
+  const notificationObserver = new CancellationNotificationObserver(notificationService)
+  eventBus.subscribe<BookingCancelledEvent>(BOOKING_CANCELLED, (e) => seatHoldObserver.handle(e))
+  eventBus.subscribe<BookingCancelledEvent>(BOOKING_CANCELLED, (e) => notificationObserver.handle(e))
+
   const searchFlights = new SearchFlightsUseCase(searchService)
   const createBooking = new CreateBookingUseCase(inventoryService, bookingService, priceCalculator)
   const getBookingDetails = new GetBookingDetailsUseCase(bookingService, ticketingService)
-  const cancelBooking = new CancelBookingUseCase(bookingService, inventoryService, notificationSvc)
+  const cancelBooking = new CancelBookingUseCase(bookingService, eventBus)
 
   return {
     authService,
