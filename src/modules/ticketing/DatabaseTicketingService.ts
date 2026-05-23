@@ -5,6 +5,7 @@ import { TicketingService } from './TicketingService'
 import { BookingService } from '../booking/BookingService'
 import { IssueTicketCommand } from './ticketing.types'
 import { Ticket } from './Ticket'
+import { TicketBuilder } from './TicketBuilder'
 import { generateId } from '../../utils/id-generator'
 import { NotFoundError } from '../../lib/errors'
 
@@ -48,14 +49,14 @@ export class DatabaseTicketingService extends TicketingService {
           },
         })
 
-        const ticket = new Ticket(
-          ticketId,
-          command.bookingId as BookingId,
-          passenger.passengerId as PassengerId,
-          ticketNumber,
-          'ISSUED' as TicketStatus,
-          issuedAt.toISOString(),
-        )
+        const ticket = new TicketBuilder()
+          .ticketId(ticketId)
+          .bookingId(command.bookingId as BookingId)
+          .passengerId(passenger.passengerId as PassengerId)
+          .ticketNumber(ticketNumber)
+          .status('ISSUED')
+          .issuedAt(issuedAt.toISOString())
+          .build()
         if (!first) first = ticket
       }
 
@@ -67,13 +68,15 @@ export class DatabaseTicketingService extends TicketingService {
 
   async getTicketsByBookingId(bookingId: BookingId): Promise<Ticket[]> {
     const rows = await this.prisma.ticket.findMany({ where: { bookingId } })
-    return rows.map(row => new Ticket(
-      row.ticketId as TicketId,
-      row.bookingId as BookingId,
-      row.passengerId as PassengerId,
-      row.ticketNumber,
-      row.status as TicketStatus,
-      row.issuedAt.toISOString(),
-    ))
+    return rows.map(row =>
+      new TicketBuilder()
+        .ticketId(row.ticketId as TicketId)
+        .bookingId(row.bookingId as BookingId)
+        .passengerId(row.passengerId as PassengerId)
+        .ticketNumber(row.ticketNumber)
+        .status(row.status as TicketStatus)
+        .issuedAt(row.issuedAt.toISOString())
+        .build()
+    )
   }
 }

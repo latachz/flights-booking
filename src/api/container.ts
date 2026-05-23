@@ -1,13 +1,6 @@
 import { prisma } from '../lib/prisma'
-import { DefaultSeatAvailabilityPolicy } from '../modules/inventory/DefaultSeatAvailabilityPolicy'
-import { DatabaseAuthService } from '../modules/auth/DatabaseAuthService'
-import { DatabaseSearchService } from '../modules/flight-search/DatabaseSearchService'
-import { DatabasePriceCalculator } from '../modules/pricing/DatabasePriceCalculator'
-import { DatabaseInventoryService } from '../modules/inventory/DatabaseInventoryService'
-import { DatabaseNotificationService } from '../modules/notification/DatabaseNotificationService'
-import { DatabasePaymentService } from '../modules/payment/DatabasePaymentService'
-import { DatabaseBookingService } from '../modules/booking/DatabaseBookingService'
-import { DatabaseTicketingService } from '../modules/ticketing/DatabaseTicketingService'
+import { ServiceFactory } from './ServiceFactory'
+import { DatabaseServiceFactory } from './DatabaseServiceFactory'
 import { AuthService } from '../modules/auth/AuthService'
 import { SearchService } from '../modules/flight-search/SearchService'
 import { InventoryService } from '../modules/inventory/InventoryService'
@@ -30,16 +23,18 @@ export interface Container {
   cancelBooking: CancelBookingUseCase
 }
 
-export function createContainer(): Container {
-  const policy = new DefaultSeatAvailabilityPolicy()
-  const authService = new DatabaseAuthService(prisma)
-  const searchService = new DatabaseSearchService(prisma)
-  const priceCalculator = new DatabasePriceCalculator(prisma)
-  const inventoryService = new DatabaseInventoryService(prisma, policy)
-  const notificationSvc = new DatabaseNotificationService(prisma)
-  const paymentService = new DatabasePaymentService(prisma)
-  const bookingService = new DatabaseBookingService(prisma, priceCalculator)
-  const ticketingService = new DatabaseTicketingService(prisma, bookingService)
+export function createContainer(
+  factory: ServiceFactory = new DatabaseServiceFactory(prisma),
+): Container {
+  const priceCalculator = factory.createPriceCalculator()
+  const policy = factory.createSeatAvailabilityPolicy()
+  const authService = factory.createAuthService()
+  const searchService = factory.createSearchService()
+  const inventoryService = factory.createInventoryService(policy)
+  const notificationSvc = factory.createNotificationService()
+  const paymentService = factory.createPaymentService()
+  const bookingService = factory.createBookingService(priceCalculator)
+  const ticketingService = factory.createTicketingService(bookingService)
 
   const searchFlights = new SearchFlightsUseCase(searchService)
   const createBooking = new CreateBookingUseCase(inventoryService, bookingService, priceCalculator)
